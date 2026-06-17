@@ -68,7 +68,6 @@ exports.getMessages = asyncHandler(async (req, res) => {
     if (!chat) {
         throw new ApiError(404, "Chat not found");
     }
-
     // check user permission
     const isParticipant = chat.participants
         .some(
