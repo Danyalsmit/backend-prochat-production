@@ -5,6 +5,23 @@ const User = require("../models/user.model");
 const ApiError = require("../utils/ApiError");
 const mongoose = require("mongoose");
 
+exports.getMyChats = asyncHandler(async (req, res) => {
+    const chats = await Chat.find({ participants: req.user._id })
+        .populate("participants", "fullName username email avatar")
+        .populate({
+            path: "latestMessage",
+            populate: {
+                path: "sender",
+                select: "fullName avatar"
+            }
+        })
+        .sort({ updatedAt: -1 });
+
+    return res.status(200).json(
+        new ApiResponse(200, chats, "Chats fetched")
+    );
+});
+
 exports.accessChat = asyncHandler(async (req, res) => {
 
     const { userId } = req.body;

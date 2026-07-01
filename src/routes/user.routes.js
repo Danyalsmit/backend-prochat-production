@@ -3,7 +3,11 @@ const router = express.Router();
 
 const upload = require("../middlewares/upload.middleware");
 const protect = require("../middlewares/auth.middleware");
-const { uploadAvatar } = require("../controllers/user.controller");
+const { uploadAvatar, getUsers, getCurrentUser } = require("../controllers/user.controller");
+
+router.get("/", protect, getUsers);
+router.get("/search", protect, getUsers);
+router.get("/me", protect, getCurrentUser);
 
 router.post(
   "/avatar",

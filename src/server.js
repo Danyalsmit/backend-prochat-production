@@ -11,79 +11,59 @@ const { Server } = require("socket.io");
 
 const PORT = process.env.PORT || 5000;
 
-// HTTP server create
+// HTTP server
 const server = http.createServer(app);
 
-// Socket.io attach
+// Socket setup
+const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL,
+    origin: clientUrl,
     credentials: true,
   },
 });
 
 const onlineUsers = new Map();
 
+/* ================= SOCKET AUTH ================= */
 io.use(async (socket, next) => {
   try {
-
-    const token =
-      socket.handshake.auth?.token;
+    const token = socket.handshake.auth?.token;
 
     if (!token) {
-      return next(
-        new Error("Authentication error")
-      );
+      return next(new Error("Authentication error"));
     }
 
-    // verify token
-    const decoded =
-      jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // user fetch
-    const user =
-      await User.findById(decoded.id).select("-password");
+    const user = await User.findById(decoded.id).select("-password");
 
     if (!user) {
-      return next(
-        new Error("User not found")
-      );
+      return next(new Error("User not found"));
     }
 
-    // attach user to socket
     socket.user = user;
-
     next();
 
   } catch (err) {
-    return next(
-      new Error("Authentication failed")
-    );
+    return next(new Error("Authentication failed"));
   }
 });
 
-// ================= SOCKET =================
-
+/* ================= SOCKET EVENTS ================= */
 io.on("connection", (socket) => {
 
   console.log("User connected:", socket.user.fullName);
 
-  onlineUsers.set(
-    socket.user._id.toString(),
-    socket.id
-  );
+  onlineUsers.set(socket.user._id.toString(), socket.id);
 
-  io.emit(
-    "online_users",
-    Array.from(onlineUsers.keys())
-  );
+  io.emit("online_users", Array.from(onlineUsers.keys()));
 
-  // JOIN CHAT
   socket.on("join_chat", (chatId) => {
     socket.join(chatId);
   });
 
-  // TYPING
   socket.on("typing", (chatId) => {
     socket.to(chatId).emit("typing", {
       user: socket.user.fullName,
@@ -91,7 +71,6 @@ io.on("connection", (socket) => {
     });
   });
 
-  // STOP TYPING FIXED HERE
   socket.on("stop_typing", (chatId) => {
     socket.to(chatId).emit("stop_typing", {
       user: socket.user.fullName,
@@ -99,7 +78,6 @@ io.on("connection", (socket) => {
     });
   });
 
-  // SEND MESSAGE
   socket.on("send_message", (data) => {
     const fullMessage = {
       chatId: data.chatId,
@@ -114,7 +92,6 @@ io.on("connection", (socket) => {
     io.to(data.chatId).emit("receive_message", fullMessage);
   });
 
-  // MESSAGE DELIVERED
   socket.on("message_delivered", ({ messageId, chatId }) => {
     io.to(chatId).emit("message_status_update", {
       messageId,
@@ -122,7 +99,6 @@ io.on("connection", (socket) => {
     });
   });
 
-  // MESSAGE READ
   socket.on("message_read", ({ messageId, chatId }) => {
     io.to(chatId).emit("message_status_update", {
       messageId,
@@ -130,23 +106,28 @@ io.on("connection", (socket) => {
     });
   });
 
-  // DISCONNECT
   socket.on("disconnect", () => {
     onlineUsers.delete(socket.user._id.toString());
 
-    io.emit(
-      "online_users",
-      Array.from(onlineUsers.keys())
-    );
+    io.emit("online_users", Array.from(onlineUsers.keys()));
 
     console.log("Disconnected:", socket.user.fullName);
   });
-
 });
-// ================= DB =================
-connectDB();
 
-// ================= SERVER =================
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+/* ================= START SERVER ================= */
+const startServer = async () => {
+  try {
+    await connectDB();
+
+    server.listen(PORT, "0.0.0.0", () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+    });
+
+  } catch (error) {
+    console.error("DB Connection Failed:", error);
+    process.exit(1);
+  }
+};
+
+startServer();

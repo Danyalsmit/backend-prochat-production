@@ -9,6 +9,12 @@ const protect = async (req, res, next) => {
         //  Cookie get token 
         if (req.cookies && req.cookies.token) {
             token = req.cookies.token;
+        } else {
+            const authHeader = req.headers.authorization || req.headers.Authorization;
+
+            if (authHeader && authHeader.startsWith("Bearer ")) {
+                token = authHeader.split(" ")[1];
+            }
         }
 
         // token not find

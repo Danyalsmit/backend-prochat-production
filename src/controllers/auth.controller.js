@@ -30,7 +30,7 @@ exports.signup = asyncHandler(async (req, res) => {
   res.cookie("token", token, cookieOptions);
 
   return res.status(201).json(
-    new ApiResponse(201, user, "User created successfully")
+    new ApiResponse(201, { user, token }, "User created successfully")
   );
 });
 exports.login = asyncHandler(async (req, res) => {
@@ -42,8 +42,16 @@ exports.login = asyncHandler(async (req, res) => {
   return res.status(200).json(
     new ApiResponse(
       200,
-      { user },
+      { user, token },
       "Login successful"
     )
+  );
+});
+
+exports.logout = asyncHandler(async (req, res) => {
+  res.clearCookie("token", { ...cookieOptions, maxAge: 0 });
+
+  return res.status(200).json(
+    new ApiResponse(200, null, "Logout successful")
   );
 });
